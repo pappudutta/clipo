@@ -118,4 +118,8 @@ clipo/
 
 ## License
 
-No license has been selected yet. Until a license is added, do not assume others have permission to reuse, modify, or redistribute this project.
+## License
+
+Clipo is open-source software licensed under the [MIT License](LICENSE).
+
+You are free to use, modify, and distribute this software under the terms of the MIT License.
