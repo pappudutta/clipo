@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply overflow-hidden bg-ink-900 font-term text-xl text-arcade-text antialiased;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+::selection {
+  background: #ffd23f;
+  color: #0a0c1b;
+}
+
+*:focus-visible {
+  outline: 2px solid #35f0e0;
+  outline-offset: 2px;
+}
+input:focus-visible,
+select:focus-visible {
+  outline: none;
+}
+
+select option {
+  background: #11142a;
+  color: #e9ecff;
+}
+
+/* thin pixel scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #3d4590 #11142a;
+}
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #11142a;
+}
+::-webkit-scrollbar-thumb {
+  background: #3d4590;
+}
+
+/* The YouTube API replaces our host div with an iframe; make it fill the box */
+.yt-host iframe {
+  width: 100%;
+  height: 100%;
+}
+
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+.animate-indeterminate {
+  animation: indeterminate 1.2s steps(8) infinite;
+}
+
+.pixel-blocks {
+  background-image: repeating-linear-gradient(90deg, #35f0e0 0 8px, transparent 8px 11px);
+}
