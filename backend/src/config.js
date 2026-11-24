@@ -33,10 +33,14 @@ module.exports = {
 
   // Limits
   maxClipSeconds: Number(process.env.MAX_CLIP_SECONDS) || 600,
-  maxHeight: Number(process.env.MAX_HEIGHT) || 0,
+  maxHeight: Number(process.env.MAX_HEIGHT) || 1080,
   accurateCuts: process.env.ACCURATE_CUTS === "1",
-  maxConcurrentJobs: Number(process.env.MAX_CONCURRENT_JOBS) || 2,
-  maxTotalJobs: Math.max(1, Number(process.env.MAX_TOTAL_JOBS) || 3),
+  maxConcurrentJobs: Number(process.env.MAX_CONCURRENT_JOBS) || 1,
+  maxTotalJobs: Math.max(1, Number(process.env.MAX_TOTAL_JOBS) || 2),
+  maxStorageBytes:
+    (Number(process.env.MAX_STORAGE_GB) || 2) * 1024 * 1024 * 1024,
+  maxStorageBytes:
+    (Number(process.env.MAX_STORAGE_GB) || 2) * 1024 * 1024 * 1024,
   jobTimeoutMs: (Number(process.env.JOB_TIMEOUT_MINUTES) || 20) * 60 * 1000,
 
   // Automatic cleanup

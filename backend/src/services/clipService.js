@@ -140,7 +140,7 @@ let running = 0;
 
 /* ---------------------------- process helper ---------------------------- */
 
-function run(cmd, args, { onLine, timeoutMs } = {}) {
+function run(cmd, args, { onLine, timeoutMs, maxStorageBytes } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(cmd, args, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -149,6 +149,7 @@ function run(cmd, args, { onLine, timeoutMs } = {}) {
     let stdout = "";
     let stderr = "";
     let timedOut = false;
+    let storageExceeded = false;
 
     const timer = timeoutMs
       ? setTimeout(() => {
@@ -156,6 +157,24 @@ function run(cmd, args, { onLine, timeoutMs } = {}) {
           child.kill("SIGKILL");
         }, timeoutMs)
       : null;
+
+    const storageTimer = maxStorageBytes
+      ? setInterval(() => {
+          try {
+            if (getStorageUsageBytes() >= maxStorageBytes) {
+              storageExceeded = true;
+              child.kill("SIGKILL");
+            }
+          } catch (err) {
+            console.error("[storage monitor]", err);
+          }
+        }, 500)
+      : null;
+
+    const clearTimers = () => {
+      if (timer) clearTimeout(timer);
+      if (storageTimer) clearInterval(storageTimer);
+    };
 
     const handle = (chunk, isErr) => {
       const output = chunk.toString();
@@ -177,7 +196,7 @@ function run(cmd, args, { onLine, timeoutMs } = {}) {
     child.stderr.on("data", chunk => handle(chunk, true));
 
     child.on("error", err => {
-      if (timer) clearTimeout(timer);
+      clearTimers();
 
       reject(
         err.code === "ENOENT"
@@ -187,8 +206,15 @@ function run(cmd, args, { onLine, timeoutMs } = {}) {
     });
 
     child.on("close", code => {
-      if (timer) clearTimeout(timer);
-      resolve({ code, stdout, stderr, timedOut });
+      clearTimers();
+
+      resolve({
+        code,
+        stdout,
+        stderr,
+        timedOut,
+        storageExceeded,
+      });
     });
   });
 }
@@ -221,9 +247,10 @@ function baseArgs() {
 /* ------------------------------ video info ------------------------------ */
 
 const infoCache = new Map();
+const infoRequests = new Map();
 const INFO_TTL_MS = 10 * 60 * 1000;
 
-async function getVideoInfo(videoUrl) {
+async function fetchVideoInfo(videoUrl) {
   const hit = infoCache.get(videoUrl);
 
   if (hit && Date.now() - hit.at < INFO_TTL_MS) {
@@ -273,6 +300,23 @@ async function getVideoInfo(videoUrl) {
     return data;
   } catch {
     throw new ClipError("Could not read video information.", 502);
+  }
+}
+
+async function getVideoInfo(videoUrl) {
+  const existingRequest = infoRequests.get(videoUrl);
+
+  if (existingRequest) {
+    return existingRequest;
+  }
+
+  const request = fetchVideoInfo(videoUrl);
+  infoRequests.set(videoUrl, request);
+
+  try {
+    return await request;
+  } finally {
+    infoRequests.delete(videoUrl);
   }
 }
 
@@ -333,7 +377,13 @@ function getJob(id) {
 }
 
 function canAcceptJob() {
-  return running + queue.length < config.maxTotalJobs;
+  cleanupExpiredJobs();
+
+  const queueAvailable = running + queue.length < config.maxTotalJobs;
+
+  const storageAvailable = getStorageUsageBytes() < config.maxStorageBytes;
+
+  return queueAvailable && storageAvailable;
 }
 
 function pump() {
@@ -380,6 +430,35 @@ function removeTempFiles(id) {
   } catch {
     // Ignore cleanup errors.
   }
+}
+
+function cleanupExpiredJobs(now = Date.now()) {
+  for (const [id, job] of jobs) {
+    if (job.finishedAt && now - job.finishedAt > config.clipTtlMs) {
+      removeTempFiles(id);
+      jobs.delete(id);
+    }
+  }
+}
+
+function getStorageUsageBytes() {
+  let total = 0;
+
+  for (const file of fs.readdirSync(config.clipsDir)) {
+    const filePath = path.join(config.clipsDir, file);
+
+    try {
+      const stat = fs.statSync(filePath);
+
+      if (stat.isFile()) {
+        total += stat.size;
+      }
+    } catch {
+      // Ignore files that disappear during inspection.
+    }
+  }
+
+  return total;
 }
 
 /* ------------------------------ process job ----------------------------- */
@@ -454,7 +533,13 @@ async function processJob(job) {
       ? ["--force-keyframes-at-cuts"]
       : []),
 
-    ...formatArgs(job.format, job.quality > 0 ? job.quality : config.maxHeight),
+    ...formatArgs(
+      job.format,
+      Math.min(
+        job.quality > 0 ? job.quality : config.maxHeight,
+        config.maxHeight,
+      ),
+    ),
 
     "--concurrent-fragments",
     "4",
@@ -464,10 +549,29 @@ async function processJob(job) {
     job.videoUrl,
   ];
 
-  const { code, stderr, timedOut } = await run(config.ytDlpPath, args, {
-    onLine,
-    timeoutMs: config.jobTimeoutMs,
-  });
+  const { code, stderr, timedOut, storageExceeded } = await run(
+    config.ytDlpPath,
+    args,
+    {
+      onLine,
+      timeoutMs: config.jobTimeoutMs,
+      maxStorageBytes: config.maxStorageBytes,
+    },
+  );
+
+  if (storageExceeded) {
+    throw new ClipError(
+      "Clipo storage limit reached. Please try again later.",
+      507,
+    );
+  }
+  if (timedOut) {
+    throw new ClipError("Processing took too long and was cancelled.", 504);
+  }
+
+  if (code !== 0) {
+    throw new ClipError(friendlyYtDlpError(stderr), 422);
+  }
 
   if (timedOut) {
     throw new ClipError("Processing took too long and was cancelled.", 504);

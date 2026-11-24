@@ -1,8 +1,8 @@
-import { Eye, Loader2, Scissors, TriangleAlert } from 'lucide-react';
-import RangeSlider from './RangeSlider.jsx';
-import TimeField from './TimeField.jsx';
-import PixelSelect from './PixelSelect.jsx';
-import { FORMATS } from '../lib/formats.js';
+import { Eye, Loader2, Scissors, TriangleAlert } from "lucide-react";
+import RangeSlider from "./RangeSlider.jsx";
+import TimeField from "./TimeField.jsx";
+import PixelSelect from "./PixelSelect.jsx";
+import { FORMATS } from "../lib/formats.js";
 
 export default function PlayerPanel({
   containerRef,
@@ -35,11 +35,14 @@ export default function PlayerPanel({
       {/* Player: fills the free height, always 16:9, never causes page scroll */}
       <div
         className="flex min-h-[150px] flex-1 items-center justify-center"
-        style={{ containerType: 'size' }}
+        style={{ containerType: "size" }}
       >
         <div
           className="relative border-2 border-ink-500 bg-black shadow-pixel"
-          style={{ width: 'min(100cqw, calc(100cqh * 16 / 9))', aspectRatio: '16 / 9' }}
+          style={{
+            width: "min(100cqw, calc(100cqh * 16 / 9))",
+            aspectRatio: "16 / 9",
+          }}
         >
           <div ref={containerRef} className="yt-host absolute inset-0" />
           {playerError && (
@@ -79,7 +82,7 @@ export default function PlayerPanel({
             invalid={invalid}
           />
           <PixelSelect label="Format" value={format} onChange={onFormatChange}>
-            {FORMATS.map((f) => (
+            {FORMATS.map(f => (
               <option key={f.id} value={f.id}>
                 {f.label}
               </option>
@@ -87,20 +90,18 @@ export default function PlayerPanel({
           </PixelSelect>
           <PixelSelect
             label="Quality"
-            value={isAudio ? 'best' : quality}
+            value={isAudio ? "best" : quality}
             onChange={onQualityChange}
             disabled={isAudio || qualityLoading}
           >
             {isAudio ? (
               <option value="best">Best audio</option>
-            ) : qualityLoading ? (
-              <option value="best">Loading…</option>
             ) : (
               <>
                 <option value="best">
-                  Best{qualityOptions[0] ? ` (${qualityOptions[0]}p)` : ''}
+                  Best{qualityOptions[0] ? ` (${qualityOptions[0]}p)` : ""}
                 </option>
-                {qualityOptions.map((h) => (
+                {qualityOptions.map(h => (
                   <option key={h} value={String(h)}>
                     {h}p
                   </option>
@@ -124,7 +125,11 @@ export default function PlayerPanel({
             disabled={submitting}
             className="flex h-12 flex-1 items-center justify-center gap-2 border-2 border-black bg-arcade-yellow px-4 font-pixel text-[10px] uppercase text-ink-900 shadow-pixel-yellow transition hover:brightness-110 active:translate-x-[3px] active:translate-y-[3px] active:shadow-none disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {submitting ? <Loader2 size={16} className="animate-spin" /> : <Scissors size={16} />}
+            {submitting ? (
+              <Loader2 size={16} className="animate-spin" />
+            ) : (
+              <Scissors size={16} />
+            )}
             Save &amp; Compile
           </button>
         </div>

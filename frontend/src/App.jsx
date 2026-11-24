@@ -1,57 +1,66 @@
-import { useEffect, useRef, useState } from 'react';
-import { List } from 'lucide-react';
-import AppHeader from './components/AppHeader.jsx';
-import CommunitySection from './components/CommunitySection.jsx';
-import Footer from './components/Footer.jsx';
-import RoadmapPage from './components/RoadmapPage.jsx';
-import UrlBar from './components/UrlBar.jsx';
-import PlayerPanel from './components/PlayerPanel.jsx';
-import SidePanel from './components/SidePanel.jsx';
-import { useYouTubePlayer } from './hooks/useYouTubePlayer.js';
-import { createClip, getClip, getFormats } from './lib/api.js';
-import { getFormat } from './lib/formats.js';
-import { extractVideoId, formatTime } from './lib/time.js';
+import { useEffect, useRef, useState } from "react";
+import { List } from "lucide-react";
+import AppHeader from "./components/AppHeader.jsx";
+import CommunitySection from "./components/CommunitySection.jsx";
+import Footer from "./components/Footer.jsx";
+import RoadmapPage from "./components/RoadmapPage.jsx";
+import UrlBar from "./components/UrlBar.jsx";
+import PlayerPanel from "./components/PlayerPanel.jsx"; // Which resolutions does this video really offer?
+import SidePanel from "./components/SidePanel.jsx";
+import { useYouTubePlayer } from "./hooks/useYouTubePlayer.js";
+import { createClip, getClip, getFormats } from "./lib/api.js";
+import { getFormat } from "./lib/formats.js";
+import { extractVideoId, formatTime } from "./lib/time.js";
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const FALLBACK_HEIGHTS = [2160, 1440, 1080, 720, 480, 360];
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const MAX_CLIP_HEIGHT = 1080;
+const FALLBACK_HEIGHTS = [1080, 720, 480, 360];
 
 export default function App() {
-  const routeForPath = () => window.location.pathname === '/roadmap' ? 'roadmap' : 'home';
+  const routeForPath = () =>
+    window.location.pathname === "/roadmap" ? "roadmap" : "home";
   const [page, setPage] = useState(routeForPath);
-  const [urlInput, setUrlInput] = useState('');
+  const [urlInput, setUrlInput] = useState("");
   const [videoId, setVideoId] = useState(null);
-  const [urlError, setUrlError] = useState('');
+  const [urlError, setUrlError] = useState("");
 
   const [start, setStart] = useState(0);
   const [end, setEnd] = useState(30);
-  const [format, setFormat] = useState('mp4');
-  const [quality, setQuality] = useState('best');
+  const [format, setFormat] = useState("mp4");
+  const [quality, setQuality] = useState("best");
   const [heights, setHeights] = useState([]);
   const [qualityLoading, setQualityLoading] = useState(false);
 
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [clips, setClips] = useState([]);
   const [clipsOpen, setClipsOpen] = useState(false);
   const counter = useRef(0);
   const seekTimer = useRef(null);
 
-  const { containerRef, duration, error: playerError, getCurrentTime, previewRange, seekTo } =
-    useYouTubePlayer(videoId);
+  const {
+    containerRef,
+    duration,
+    error: playerError,
+    getCurrentTime,
+    previewRange,
+    seekTo,
+  } = useYouTubePlayer(videoId);
 
   const fmt = getFormat(format);
 
   useEffect(() => {
     const onPopState = () => setPage(routeForPath());
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
-  const navigate = (next) => {
-    const path = next === 'roadmap' ? '/roadmap' : '/';
-    if (window.location.pathname !== path) window.history.pushState({}, '', path);
+  const navigate = next => {
+    const path = next === "roadmap" ? "/roadmap" : "/";
+    if (window.location.pathname !== path)
+      window.history.pushState({}, "", path);
     setPage(next);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   /* ------------------------------ URL handling ----------------------------- */
@@ -61,10 +70,10 @@ export default function App() {
     setUrlInput(value);
     const id = extractVideoId(value);
     if (id) {
-      setUrlError('');
+      setUrlError("");
       if (id !== videoId) {
         setVideoId(id);
-        setFormError('');
+        setFormError("");
       }
     }
   }
@@ -72,7 +81,8 @@ export default function App() {
   // After paste / Enter / blur: complain only if there is text and it is not valid
   function handleUrlFinal(value) {
     const v = value.trim();
-    if (v && !extractVideoId(v)) setUrlError('That doesn’t look like a valid YouTube video link.');
+    if (v && !extractVideoId(v))
+      setUrlError("That doesn’t look like a valid YouTube video link.");
   }
 
   /* --------------------------- per-video set up ---------------------------- */
@@ -85,17 +95,44 @@ export default function App() {
     }
   }, [duration, videoId]);
 
-  // Which resolutions does this video really offer?
+  // Available resolutions, capped at 1080p
   useEffect(() => {
     if (!videoId) return undefined;
+
     let cancelled = false;
-    setQuality('best');
-    setHeights([]);
+
+    setQuality("best");
+    setHeights(FALLBACK_HEIGHTS);
     setQualityLoading(true);
+
     getFormats(videoId)
-      .then((d) => !cancelled && setHeights(d.heights?.length ? d.heights : FALLBACK_HEIGHTS))
-      .catch(() => !cancelled && setHeights(FALLBACK_HEIGHTS))
-      .finally(() => !cancelled && setQualityLoading(false));
+      .then(data => {
+        if (cancelled) return;
+
+        const available = Array.isArray(data.heights) ? data.heights : [];
+
+        const capped = [
+          ...new Set(
+            available
+              .map(Number)
+              .filter(
+                height =>
+                  Number.isFinite(height) &&
+                  height > 0 &&
+                  height <= MAX_CLIP_HEIGHT,
+              ),
+          ),
+        ].sort((a, b) => b - a);
+
+        setHeights(capped.length ? capped : FALLBACK_HEIGHTS);
+      })
+      .catch(() => {
+        if (!cancelled) setHeights(FALLBACK_HEIGHTS);
+      })
+      .finally(() => {
+        if (!cancelled) setQualityLoading(false);
+      });
+
     return () => {
       cancelled = true;
     };
@@ -103,7 +140,7 @@ export default function App() {
 
   /* ------------------------------ time controls ---------------------------- */
 
-  const queueSeek = (t) => {
+  const queueSeek = t => {
     clearTimeout(seekTimer.current);
     seekTimer.current = setTimeout(() => seekTo(t), 80);
   };
@@ -112,10 +149,10 @@ export default function App() {
   function handleRange(s, e, which) {
     setStart(s);
     setEnd(e);
-    queueSeek(which === 'end' ? Math.max(0, e - 1) : s);
+    queueSeek(which === "end" ? Math.max(0, e - 1) : s);
   }
 
-  const clampTime = (t) => Math.max(0, duration > 0 ? Math.min(duration, t) : t);
+  const clampTime = t => Math.max(0, duration > 0 ? Math.min(duration, t) : t);
   function handleStartChange(v) {
     setStart(clampTime(v));
     queueSeek(clampTime(v));
@@ -132,7 +169,9 @@ export default function App() {
   /* --------------------------------- cutting ------------------------------- */
 
   const patchClip = (localId, patch) =>
-    setClips((list) => list.map((c) => (c.localId === localId ? { ...c, ...patch } : c)));
+    setClips(list =>
+      list.map(c => (c.localId === localId ? { ...c, ...patch } : c)),
+    );
 
   async function pollJob(localId, jobId) {
     let failures = 0;
@@ -148,11 +187,11 @@ export default function App() {
           error: job.error,
           videoTitle: job.title,
         });
-        if (job.status === 'done' || job.status === 'error') return;
+        if (job.status === "done" || job.status === "error") return;
       } catch (err) {
         failures += 1;
         if (failures >= 3) {
-          patchClip(localId, { status: 'error', error: err.message });
+          patchClip(localId, { status: "error", error: err.message });
           return;
         }
       }
@@ -160,20 +199,27 @@ export default function App() {
   }
 
   async function handleSubmit() {
-    setFormError('');
+    setFormError("");
     if (!videoId) return;
-    if (end <= start) return setFormError('End time must be after the start time.');
+    if (end <= start)
+      return setFormError("End time must be after the start time.");
     if (duration && start >= duration)
-      return setFormError(`Start is beyond the video length (${formatTime(duration)}).`);
+      return setFormError(
+        `Start is beyond the video length (${formatTime(duration)}).`,
+      );
     if (duration && end > duration + 0.5)
-      return setFormError(`End exceeds the video length (${formatTime(duration)}).`);
+      return setFormError(
+        `End exceeds the video length (${formatTime(duration)}).`,
+      );
 
     counter.current += 1;
     const localId = `local-${counter.current}`;
-    const q = fmt.audio ? 'best' : quality;
-    const meta = fmt.audio ? fmt.short : `${q === 'best' ? 'BEST' : `${q}p`} ${fmt.short}`;
+    const q = fmt.audio ? "best" : quality;
+    const meta = fmt.audio
+      ? fmt.short
+      : `${q === "best" ? "BEST" : `${q}p`} ${fmt.short}`;
 
-    setClips((list) => [
+    setClips(list => [
       {
         localId,
         number: counter.current,
@@ -183,7 +229,7 @@ export default function App() {
         start,
         end,
         meta,
-        status: 'queued',
+        status: "queued",
         progress: 0,
         size: null,
         error: null,
@@ -205,7 +251,7 @@ export default function App() {
       setSubmitting(false);
       await pollJob(localId, id);
     } catch (err) {
-      patchClip(localId, { status: 'error', error: err.message });
+      patchClip(localId, { status: "error", error: err.message });
       setSubmitting(false);
     }
   }
@@ -218,11 +264,11 @@ export default function App() {
       <div
         className={
           videoId
-            ? 'flex shrink-0 items-start gap-3 p-3 pb-2'
-            : 'flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4'
+            ? "flex shrink-0 items-start gap-3 p-3 pb-2"
+            : "flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4"
         }
       >
-        <div className={videoId ? 'min-w-0 flex-1' : 'w-full max-w-xl'}>
+        <div className={videoId ? "min-w-0 flex-1" : "w-full max-w-xl"}>
           <UrlBar
             value={urlInput}
             onChange={handleUrlChange}
@@ -267,7 +313,11 @@ export default function App() {
             submitting={submitting}
             formError={formError}
           />
-          <SidePanel clips={clips} open={clipsOpen} onClose={() => setClipsOpen(false)} />
+          <SidePanel
+            clips={clips}
+            open={clipsOpen}
+            onClose={() => setClipsOpen(false)}
+          />
         </div>
       )}
       <CommunitySection onNavigate={navigate} />
@@ -277,7 +327,7 @@ export default function App() {
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader page={page} onNavigate={navigate} />
-      {page === 'roadmap' ? <RoadmapPage onNavigate={navigate} /> : home}
+      {page === "roadmap" ? <RoadmapPage onNavigate={navigate} /> : home}
       <Footer onNavigate={navigate} />
     </div>
   );
