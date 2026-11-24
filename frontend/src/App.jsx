@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { List } from 'lucide-react';
+import AppHeader from './components/AppHeader.jsx';
+import CommunitySection from './components/CommunitySection.jsx';
+import Footer from './components/Footer.jsx';
+import RoadmapPage from './components/RoadmapPage.jsx';
 import UrlBar from './components/UrlBar.jsx';
 import PlayerPanel from './components/PlayerPanel.jsx';
 import SidePanel from './components/SidePanel.jsx';
@@ -12,6 +16,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const FALLBACK_HEIGHTS = [2160, 1440, 1080, 720, 480, 360];
 
 export default function App() {
+  const routeForPath = () => window.location.pathname === '/roadmap' ? 'roadmap' : 'home';
+  const [page, setPage] = useState(routeForPath);
   const [urlInput, setUrlInput] = useState('');
   const [videoId, setVideoId] = useState(null);
   const [urlError, setUrlError] = useState('');
@@ -34,6 +40,19 @@ export default function App() {
     useYouTubePlayer(videoId);
 
   const fmt = getFormat(format);
+
+  useEffect(() => {
+    const onPopState = () => setPage(routeForPath());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+
+  const navigate = (next) => {
+    const path = next === 'roadmap' ? '/roadmap' : '/';
+    if (window.location.pathname !== path) window.history.pushState({}, '', path);
+    setPage(next);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   /* ------------------------------ URL handling ----------------------------- */
 
@@ -193,14 +212,14 @@ export default function App() {
 
   /* --------------------------------- layout -------------------------------- */
 
-  return (
-    <div className="flex h-dvh flex-col overflow-hidden">
+  const home = (
+    <main className="flex flex-1 flex-col">
       {/* One address box: centered on its own at first, pinned to the top once a video loads */}
       <div
         className={
           videoId
             ? 'flex shrink-0 items-start gap-3 p-3 pb-2'
-            : 'flex flex-1 items-center justify-center p-4'
+            : 'flex min-h-[calc(100dvh-4rem)] items-center justify-center p-4'
         }
       >
         <div className={videoId ? 'min-w-0 flex-1' : 'w-full max-w-xl'}>
@@ -223,7 +242,7 @@ export default function App() {
       </div>
 
       {videoId && (
-        <div className="flex min-h-0 flex-1 gap-4 p-3 pt-1">
+        <div className="flex min-h-[650px] flex-1 gap-4 p-3 pt-1">
           <PlayerPanel
             containerRef={containerRef}
             playerError={playerError}
@@ -251,6 +270,15 @@ export default function App() {
           <SidePanel clips={clips} open={clipsOpen} onClose={() => setClipsOpen(false)} />
         </div>
       )}
+      <CommunitySection onNavigate={navigate} />
+    </main>
+  );
+
+  return (
+    <div className="flex min-h-dvh flex-col">
+      <AppHeader page={page} onNavigate={navigate} />
+      {page === 'roadmap' ? <RoadmapPage onNavigate={navigate} /> : home}
+      <Footer onNavigate={navigate} />
     </div>
   );
 }

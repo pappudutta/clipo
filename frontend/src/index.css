@@ -9,7 +9,7 @@ body,
 }
 
 body {
-  @apply overflow-hidden bg-ink-900 font-term text-xl text-arcade-text antialiased;
+  @apply overflow-x-hidden bg-ink-900 font-term text-xl text-arcade-text antialiased;
   background-image:
     linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
@@ -67,4 +67,60 @@ select option {
 
 .pixel-blocks {
   background-image: repeating-linear-gradient(90deg, #35f0e0 0 8px, transparent 8px 11px);
+}
+
+.clipo-logo {
+  display: inline-block;
+  width: 10ch;
+  max-width: 100%;
+  overflow: visible;
+  font-family: "Press Start 2P", ui-monospace, monospace;
+  font-size: clamp(0.85rem, 2.8vw, 1.1rem);
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.clipo-logo-compact {
+  font-size: clamp(0.72rem, 2.8vw, 0.95rem);
+}
+
+.clipo-logo-text {
+  display: inline-block;
+  background: linear-gradient(100deg, #35f0e0, #70b8ff, #a78bfa, #ff9cc0, #ffd23f, #35f0e0);
+  background-size: 240% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  clip-path: inset(0 100% 0 0);
+  animation: clipo-type 1.35s steps(10, end) 140ms forwards, clipo-gradient 9s ease-in-out 1.5s infinite;
+}
+
+.clipo-logo-text::after {
+  content: "_";
+  color: #35f0e0;
+  -webkit-text-fill-color: #35f0e0;
+  animation: clipo-cursor 850ms steps(1, end) infinite;
+}
+
+@keyframes clipo-type {
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes clipo-gradient {
+  50% { background-position: 100% 50%; }
+}
+
+@keyframes clipo-cursor {
+  50% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .clipo-logo-text {
+    clip-path: none;
+    animation: none;
+  }
+
+  .clipo-logo-text::after {
+    animation: none;
+  }
 }

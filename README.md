@@ -54,6 +54,17 @@ This starts:
 
 Open http://localhost:5173 in your browser. Keep the terminal running while using Clipo.
 
+### Automatic VS Code development startup
+
+When you open this folder in VS Code, the **Clipo: Start Development Servers** workspace task can run `npm run dev` automatically. VS Code will prompt you to allow automatic tasks for this trusted workspace. You can also manage the choice later with **Tasks: Manage Automatic Tasks** from the Command Palette.
+
+The task keeps its integrated terminal visible and prevents a second VS Code instance of the task from starting. Before either the task or a manual `npm run dev` starts, Clipo checks that ports `5000` (API) and `5173` (Vite) are free. If either is occupied, it prints a clear message and does not stop or alter the existing process.
+
+- **Frontend changes:** Vite Hot Module Replacement updates React components and styles automatically in the browser where it can preserve state.
+- **Backend changes:** Node's built-in `--watch` mode restarts the Express server when files under `backend/src/` change. Its restart output remains visible in the same terminal.
+- **Stop both servers:** focus the development task terminal and press `Ctrl+C`; `concurrently` stops the frontend and backend together.
+- **Manual restart required:** stop and start the task after changing `.env` values, installed dependencies, package scripts, Node/FFmpeg/yt-dlp configuration, or port settings.
+
 ## Optional backend configuration
 
 Create `backend/.env` only if you need to override defaults. Do not commit this file. Example:
